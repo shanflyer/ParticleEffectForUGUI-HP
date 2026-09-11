@@ -1,0 +1,20 @@
+{
+  "name": "ShanFlyer.Rendering.URP",
+  "rootNamespace": "ShanFlyer.Rendering.URP",
+  "references": [
+    "ShanFlyer.Runtime",
+    "ShanFlyer.Rendering",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime"
+  ],
+  "allowUnsafeCode": false,
+  "autoReferenced": true,
+  "noEngineReferences": false,
+  "versionDefines": [
+    {
+      "name": "com.unity.render-pipelines.universal",
+      "expression": "14.0.0",
+      "define": "SHANFLYER_URP_14_OR_NEWER"
+    }
+  ]
+}

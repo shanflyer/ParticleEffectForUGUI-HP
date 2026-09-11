@@ -1,0 +1,13 @@
+{
+  "name": "ShanFlyer.Runtime",
+  "rootNamespace": "ShanFlyer",
+  "references": [
+    "ShanFlyer.LowLevel",
+    "ShanFlyer.Simulation",
+    "Unity.Collections",
+    "Unity.Mathematics"
+  ],
+  "allowUnsafeCode": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

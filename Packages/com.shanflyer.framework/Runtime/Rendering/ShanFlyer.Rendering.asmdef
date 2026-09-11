@@ -1,0 +1,14 @@
+{
+  "name": "ShanFlyer.Rendering",
+  "rootNamespace": "ShanFlyer.Rendering",
+  "references": [
+    "ShanFlyer.LowLevel",
+    "ShanFlyer.Runtime",
+    "Unity.Collections",
+    "Unity.Mathematics",
+    "Unity.RenderPipelines.Core.Runtime"
+  ],
+  "allowUnsafeCode": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 上游 ParticleEffectForUGUI
+    url: https://github.com/mob-sakai/ParticleEffectForUGUI/issues
+    about: 与原版 UI Particle 相关的问题，请优先在上游反馈

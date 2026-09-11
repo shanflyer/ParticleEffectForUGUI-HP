@@ -1,0 +1,70 @@
+# ---------------------------------------------------------------------------
+# ParticleEffectForUGUI-HP / Unity .gitignore
+# ---------------------------------------------------------------------------
+
+# ---- Windows ----
+Thumbs.db
+Desktop.ini
+[Dd]esktop.ini
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ---- Vim / editors ----
+*.swp
+*~
+
+# ---- Unity 生成物 ----
+/Logs
+/Logs/*
+/Library
+/Library/*
+/Temp
+/Temp/*
+/Obj
+/obj
+/Build
+/Builds
+/[Bb]uild/*
+/UserSettings
+/[Uu]serSettings/*
+/MemoryCaptures
+/Recordings
+/TestResults
+/TempDiag
+
+# ---- 打包产物 ----
+/APK
+/ProfilerAIExports
+*.apk
+*.aab
+*.unitypackage
+
+# ---- IDE / 生成工程文件 ----
+/*.csproj
+/*.sln
+/*.suo
+/*.user
+/*.userprefs
+.vs/
+.vscode/
+.idea/
+bin/
+obj/
+
+# ---- 本地开发便利链接（指向 Packages/src/Samples~，不入库）----
+/Assets/Samples
+/Assets/Samples.meta
+
+# ---- 其他 ----
+crashlytics-build.properties
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt

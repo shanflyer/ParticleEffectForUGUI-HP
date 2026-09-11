@@ -1,0 +1,12 @@
+{
+  "name": "ShanFlyer.LowLevel",
+  "rootNamespace": "ShanFlyer.LowLevel",
+  "references": [
+    "Unity.Burst",
+    "Unity.Collections",
+    "Unity.Mathematics"
+  ],
+  "allowUnsafeCode": true,
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

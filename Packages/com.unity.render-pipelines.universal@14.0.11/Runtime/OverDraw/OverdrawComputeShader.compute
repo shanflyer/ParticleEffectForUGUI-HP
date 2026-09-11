@@ -1,0 +1,33 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel OverdrawComputeShader
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+// 0 = 标志位
+// 1 = 像素是否绘制
+// 2 = 像素绘制次数
+// 3 = 像素值
+
+RWStructuredBuffer<uint> _OverdrawArray; 
+Texture2D _MainTex;
+
+[numthreads(8, 8, 1)]
+void OverdrawComputeShader(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    _MainTex.GetDimensions(width, height);
+    if (id.x >= width || id.y >= height) return;
+    float4 pixel = _MainTex[id.xy];
+
+    uint overDraw = round(pixel.r * 255);
+
+    if (overDraw > 0)
+    {
+        InterlockedAdd(_OverdrawArray[1], 1);
+        InterlockedAdd(_OverdrawArray[2], overDraw);
+        uint oldValue = 0;
+        InterlockedMax(_OverdrawArray[3], overDraw, oldValue);
+    }
+    
+    InterlockedAdd(_OverdrawArray[0], 1);
+}

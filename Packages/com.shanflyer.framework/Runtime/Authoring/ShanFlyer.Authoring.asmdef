@@ -1,0 +1,10 @@
+{
+  "name": "ShanFlyer.Authoring",
+  "rootNamespace": "ShanFlyer.Authoring",
+  "references": [
+    "ShanFlyer.Runtime"
+  ],
+  "allowUnsafeCode": false,
+  "autoReferenced": true,
+  "noEngineReferences": false
+}
