@@ -68,10 +68,12 @@ namespace Coffee.UIParticleInternal
 }
 namespace Coffee.UIExtensions
 {
+    internal class SpriteMaskDrawScope { public bool blocked; }
     internal class UIParticle { public static int earlyCull; public object[] m_AnimatableProperties = Array.Empty<object>(); }
     internal partial class UIParticleRenderer : Graphic
     {
         private bool _forceBake, _staticValid, _meshCleared, _uguiClipCulled;
+        private SpriteMaskDrawScope _spriteMask;
         private float _nextCullProbeTime;
         private Bounds _lastBounds = new Bounds { extents = new Vector3 { value = 1 } };
         private Rect rootCanvasRect;

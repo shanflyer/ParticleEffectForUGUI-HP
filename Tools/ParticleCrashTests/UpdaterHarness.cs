@@ -25,6 +25,7 @@ namespace Coffee.UIParticleInternal
 }
 namespace Coffee.UIExtensions
 {
+    public static class SpriteMaskResolver { public static void BeginFrame() { } }
     public class UIParticleRenderer { public bool isActiveAndEnabled = true; }
     public class UIParticleAttractor { public bool isActiveAndEnabled = true; public void Attract() { } }
     public partial class UIParticle
@@ -46,7 +47,7 @@ namespace Coffee.UIExtensions
         public void GetOutputVisibility(out bool hasOutput, out bool alphaHidden, out bool clipHidden)
         { hasOutput = output; alphaHidden = hidden; clipHidden = hidden || clipped; }
         public bool isActiveAndEnabled = true, useMeshSharing = true, canSimulate = true, isPrimary;
-        public bool _isInSharingMap, _fastPathProcessed, hasUnmergedFallback, changed = true;
+        public bool _isInSharingMap, _fastPathProcessed, hasUnmergedFallback, needsSpriteMaskIsolation, changed = true;
         public int groupId = 1, _sharingMapGroupId, prepared, updated, invalidated, allocations, cleared;
         public object canvas = new object();
         public Action onUpdate, onPrepare;

@@ -56,6 +56,7 @@ namespace Coffee.UIExtensions
         private Bounds _lastBounds;
         private Material _materialForRendering;
         private Material _modifiedMaterial;
+        private SpriteMaskDrawScope _spriteMask;
         private UIParticle _parent;
         private ParticleSystem _particleSystem;
         private float _prevCanvasScale;
@@ -188,6 +189,7 @@ namespace Coffee.UIExtensions
 
         public void Reset(int index = -1)
         {
+            ReleaseSpriteMask();
             if (_mergedPsRenderers != null)
             {
                 // Restore each source renderer to the exact state it had before binding.
@@ -289,6 +291,7 @@ namespace Coffee.UIExtensions
 
         protected override void OnDestroy()
         {
+            ReleaseSpriteMask();
             // Also release if the generated renderer itself is removed/replaced.
             ReleaseMergedMeshes();
             base.OnDestroy();
@@ -388,6 +391,7 @@ namespace Coffee.UIExtensions
             {
                 var ps = systems[i];
                 if (ps == null || !ps.TryGetComponent<ParticleSystemRenderer>(out var renderer)) continue;
+                if (renderer.maskInteraction != SpriteMaskInteraction.None) return false;
                 var mat = renderer.sharedMaterial;
                 var texture = ps.GetTextureForSprite();
                 var effectiveTexture = texture != null ? texture : mat != null ? mat.mainTexture : null;
@@ -495,6 +499,7 @@ namespace Coffee.UIExtensions
 
         protected override void OnDisable()
         {
+            ReleaseSpriteMask();
             base.OnDisable();
 
             MaterialRepository.Release(ref _modifiedMaterial);
@@ -544,7 +549,7 @@ namespace Coffee.UIExtensions
             if (texture == null && _parent.m_AnimatableProperties.Length == 0)
             {
                 MaterialRepository.Release(ref _modifiedMaterial);
-                return modifiedMaterial;
+                return _spriteMask != null ? _spriteMask.Modify(modifiedMaterial) : modifiedMaterial;
             }
 
             var hash = new Hash128(
@@ -566,7 +571,31 @@ namespace Coffee.UIExtensions
                 }, (mat: modifiedMaterial, texture));
             }
 
-            return _modifiedMaterial;
+            return _spriteMask != null ? _spriteMask.Modify(_modifiedMaterial) : _modifiedMaterial;
+        }
+
+        private void ReleaseSpriteMask()
+        {
+            _spriteMask?.Dispose();
+            _spriteMask = null;
+            _materialForRendering = null;
+            _materialsDirty = true;
+        }
+
+        internal void PrepareSpriteMask()
+        {
+            if (!_parent || !_renderer || isMerged) return;
+            if (_renderer.maskInteraction == SpriteMaskInteraction.None && _spriteMask == null) return;
+            if (_spriteMask == null) _spriteMask = new SpriteMaskDrawScope(this);
+            // Apply the same effect-space magnification as the baked particles. Relative mode
+            // scales about the UIParticle origin; Absolute mode scales about the emitter origin.
+            var anchor = _parent.positionMode == UIParticle.PositionMode.Absolute
+                ? _particleSystem.transform.position : _parent.transform.position;
+            var matrix = transform.worldToLocalMatrix * Matrix4x4.Translate(anchor)
+                * Matrix4x4.Scale(GetWorldScale()) * Matrix4x4.Translate(-anchor);
+            _spriteMask.Prepare(_renderer, _parent, matrix);
+            // Replicas and paused/static/low-frequency emitters still update their own mask state.
+            SetCanvasRendererMaterials(canvasRenderer);
         }
 
         public void Set(UIParticle parent, ParticleSystem ps, bool isTrail, ParticleSystem mainEmitter)
@@ -1592,6 +1621,12 @@ namespace Coffee.UIExtensions
 
         private void SetCanvasRendererMaterials(CanvasRenderer cr)
         {
+            if (_spriteMask != null && _spriteMask.blocked)
+            {
+                cr.materialCount = 0;
+                _materialsDirty = true;
+                return;
+            }
             var firstMaterial = materialForRendering;
             var count = _mergedSystems == null || _mergedUniform ? 1 : _mergedSubmeshMaterials.Length;
             if (!_materialsDirty && _submittedMaterial == firstMaterial && cr.materialCount == count) return;

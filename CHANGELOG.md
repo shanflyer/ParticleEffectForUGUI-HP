@@ -3,6 +3,16 @@
 本项目基于 [ParticleEffectForUGUI](https://github.com/mob-sakai/ParticleEffectForUGUI)（MIT）之上做性能定制 Fork。
 上游包自身的版本历史见 [`Packages/src/CHANGELOG.md`](./Packages/src/CHANGELOG.md)。
 
+## [Unreleased]
+
+- 修复 SpriteMask 的原生低位写入泄漏到相邻 Scroll View，导致 Viewport 外 Toggle 重新显示：HP 接管源遮罩原生绘制，按引用计数恢复状态，并在相机剔除前同步新增/重挂接遮罩。
+
+- Canvas SpriteMask 桥接：按排序范围、Sorting Layer 和嵌套 SortingGroup 解析有效遮罩集合，支持 None / Inside / Outside、多遮罩并集与父级 UGUI Mask。
+- 使用独立的写入/清除 Shader，复用原粒子 Shader 的 Stencil 状态；现有粒子 Shader 未修改。自定义兼容 Shader 提供显式注册 API，不兼容或 Stencil 位不足时明确报错并停止对应输出。
+- 遮罩状态独立于烘焙降频、静态缓存和共享网格更新；有遮罩的共享组使用统一的独立 Renderer 布局。
+- 新增原生/HP 对照场景、动态遮罩/对象池控制、Built-in 与 URP GPU 像素回归、Windows Player 构建验证及接入文档。
+- 离线回归工具明确跳过未随开源工程分发的历史基线和未生成的 Player 编译缓存。
+
 ## [1.0.0] - 2026-09-11
 
 首个公开版本。

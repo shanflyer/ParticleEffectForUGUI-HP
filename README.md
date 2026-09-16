@@ -8,6 +8,10 @@
 > 一个面向**移动端大量 UI 粒子特效**的性能定制 Fork，基于 [mob-sakai/ParticleEffectForUGUI](https://github.com/mob-sakai/ParticleEffectForUGUI)（UI Particle，MIT 许可）。
 > 仓库同时包含完整的 **UI 粒子 vs RenderTexture 对比评测工程**与离线回归工具。
 
+**SpriteMask 支持**：Canvas 绘制中保留粒子的 Inside / Outside 遮罩效果、多遮罩并集及父级 UGUI Mask。
+复用已有粒子 Shader 的 Stencil 能力，不替换其着色逻辑。见 [接入说明](Docs/SpriteMask.md)和
+[验证记录](Docs/SpriteMaskValidation.md)；对照场景位于 `Assets/FxUIParticleTest/SpriteMaskDemo/SpriteMaskComparison.unity`。
+
 **English TL;DR** — This is a performance-oriented fork of `ParticleEffectForUGUI` (upstream v4.14.0, MIT) plus a reproducible Unity 2022.3 + URP 14 benchmark project that compares UI-particle rendering against the classic Camera + RenderTexture approach. See [Custom optimizations](#定制优化特性) and [Benchmark scenes](#测试与评测场景).
 
 ---

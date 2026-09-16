@@ -432,6 +432,7 @@ namespace Coffee.UIExtensions
             }
 
             base.OnEnable();
+            SpriteMaskNativeRendering.Register(this);
         }
 
         /// <summary>
@@ -439,6 +440,7 @@ namespace Coffee.UIExtensions
         /// </summary>
         protected override void OnDisable()
         {
+            SpriteMaskNativeRendering.Unregister(this);
             _tracker.Clear();
             _trackingScale = false;
             if (autoScalingMode == AutoScalingMode.Transform && _isScaleStored)
@@ -459,6 +461,7 @@ namespace Coffee.UIExtensions
 
         protected override void OnDestroy()
         {
+            SpriteMaskNativeRendering.Unregister(this);
             // Removing just the UIParticle component must also release its generated
             // children. Scene/GameObject destruction already removes them naturally.
             for (var i = 0; i < _renderers.Count; i++)
@@ -818,7 +821,10 @@ namespace Coffee.UIExtensions
             }
             if (_rebuildRenderers) RefreshParticles(particles);
 
+            SpriteMaskNativeRendering.Sync(this);
             UpdateTransformScale();
+            for (var i = 0; i < _activeRendererCount; i++)
+                if (_renderers[i] != null) _renderers[i].PrepareSpriteMask();
             var changed = _rendererBindingsDirty || _sharingModeStamp != meshSharing || _sharingGroupStamp != groupId;
             _rendererBindingsDirty = false;
             _sharingModeStamp = meshSharing;
@@ -828,12 +834,24 @@ namespace Coffee.UIExtensions
 
         internal void RequestUnmergedFallback()
         {
-            if (_fallbackToUnmerged) return;
+            if (_fallbackToUnmerged && _mergeModeStamp == mergeRenderers) return;
             _fallbackToUnmerged = true;
+            _mergeModeStamp = mergeRenderers;
             _rebuildRenderers = true;
         }
 
         internal bool hasUnmergedFallback => _fallbackToUnmerged && _mergeModeStamp == mergeRenderers;
+
+        internal bool needsSpriteMaskIsolation
+        {
+            get
+            {
+                foreach (var ps in particles)
+                    if (ps && ps.TryGetComponent<ParticleSystemRenderer>(out var renderer)
+                        && renderer.maskInteraction != SpriteMaskInteraction.None) return true;
+                return false;
+            }
+        }
 
         /// <summary>
         /// Call on the main thread after externally changing particle data (for example

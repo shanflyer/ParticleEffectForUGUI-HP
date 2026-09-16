@@ -36,6 +36,9 @@ def check(name, sources, defines="", expect_fail=False):
 def compile_player_and_compute():
     for name in ("Unity.RenderPipelines.Universal.Runtime", "Coffee.UIParticle", "Assembly-CSharp"):
         source = ROOT / "Library/Bee/artifacts/1300b0aPDevDbg.dag" / (name + ".rsp")
+        if not source.exists():
+            print("SKIP cached Player compilation (build a Player first): " + name)
+            continue
         lines = [line for line in source.read_text(encoding="utf-8-sig").splitlines()
                  if not line.startswith(("-out:", "-refout:", "-analyzer:", "-additionalfile:"))]
         if name == "Coffee.UIParticle":
@@ -144,6 +147,9 @@ if __name__ == "__main__":
     check("updater_extended", ["Tools/ParticleCrashTests/UpdaterHarness.cs", "Packages/src/Runtime/UIParticleUpdater.cs", "Packages/src/Runtime/UIParticleProfiler.cs", api_file.relative_to(ROOT).as_posix()],
           "UNITY_EDITOR,UNITY_2019_3_OR_NEWER,FIXED,EXTENDED")
     for variant, prefix in (("before", "TempDiag/before_extended_audit_20260907/"), ("fixed", "")):
+        if variant == "before" and not (ROOT / prefix).exists():
+            print("SKIP historical utility baseline (not distributed)")
+            continue
         check("utilities_" + variant, ["Tools/ParticleCrashTests/UtilityHarness.cs",
               prefix + "Packages/src/Runtime/Utilities/ParticleSystemExtensions.cs",
               prefix + "Packages/src/Runtime/Internal/Extensions/Vector3Extensions.cs"], expect_fail=variant == "before")

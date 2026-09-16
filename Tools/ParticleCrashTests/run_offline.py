@@ -58,6 +58,9 @@ def main():
         ("before", "TempDiag/before_crash_fix_20260907/Packages/src/Runtime/UIParticleUpdater.cs"),
         ("fixed", "Packages/src/Runtime/UIParticleUpdater.cs"),
     ):
+        if variant == "before" and not (root / updater).exists():
+            print("SKIP historical baseline (not distributed): " + updater)
+            continue
         assembly = output / ("updater_" + variant + ".dll")
         defines = "UNITY_EDITOR,UNITY_2019_3_OR_NEWER" + (",FIXED" if variant == "fixed" else "")
         lines = ["-nologo", "-target:exe", "-nostdlib+", "-define:" + defines,

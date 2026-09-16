@@ -189,6 +189,7 @@ namespace Coffee.UIExtensions
 
         private static void RefreshFrame()
         {
+            SpriteMaskResolver.BeginFrame();
             var prepareStarted = UIParticleProfiler.Timestamp();
 
             // User callbacks may unregister or register components during this pass.
@@ -206,7 +207,12 @@ namespace Coffee.UIExtensions
             for (var i = 0; i < s_FrameParticles.Count; i++)
             {
                 var uip = s_FrameParticles[i];
-                if (uip != null && uip.useMeshSharing && uip.hasUnmergedFallback)
+                if (uip == null) continue;
+                // Determine every group's layout before preparing any member. A masked replica
+                // must not receive a merged mesh from an unmasked simulation owner.
+                var masked = uip.needsSpriteMaskIsolation;
+                if (masked) uip.RequestUnmergedFallback();
+                if (uip.useMeshSharing && (uip.hasUnmergedFallback || masked))
                     s_FallbackGroupIds.Add(uip.groupId);
             }
             for (var i = 0; i < s_FrameParticles.Count; i++)
