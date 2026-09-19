@@ -5,13 +5,14 @@ namespace Coffee.UIExtensions
     // Value-only counters. Sampling never enables Unity's full profiler or allocates per frame.
     public static class UIParticleProfiler
     {
-        public const string Implementation = "particle-system-count-20260908-v6";
+        public const string Implementation = "hp-unity6-20260919-cache";
         public struct Frame
         {
             public int frame, bakeOps, setMeshOps, materialUpdates, meshesCreated;
+            public int bridgeCacheHits, maskMeshSubmissions, maskResolveCacheHits;
             public int activeRenderers, mergedRenderers, fallbackEffects;
             public long bakedVertices;
-            public double prepareMs, simulateMs, bakeMs, combineMs, submitMs;
+            public double prepareMs, simulateMs, bakeMs, combineMs, submitMs, bridgeCompareMs;
             public bool detailedTiming;
         }
 

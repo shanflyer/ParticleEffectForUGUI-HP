@@ -185,7 +185,7 @@ static class LogicHarness
                 var files = Directory.GetFiles(Path.Combine(UnityEngine.Application.persistentDataPath, "FxUIParticleBaseline"), "*.csv");
                 Assert(files.Length >= 2, "same-second captures overwritten");
                 var row = File.ReadAllLines(files.Last()).First(x => x.Length > 0 && char.IsDigit(x[0]));
-                Assert(row.Split(',').Length == 25 && row.Contains("12.500"), "locale split CSV numbers");
+                Assert(row.Split(',').Length == 29 && row.Contains("12.500"), "locale split CSV numbers");
             }
             finally { CultureInfo.CurrentCulture = previous; }
         });
@@ -224,14 +224,14 @@ static class LogicHarness
         });
         Test("CSV frame count matches typed samples and diagnostic columns", () => {
             var recorder = Recorder("schema");
-            UIParticleProfiler.BeginFrame(123); UIParticleProfiler.current.bakeOps = 7; UIParticleProfiler.EndFrame();
+            UIParticleProfiler.BeginFrame(123); UIParticleProfiler.current.bakeOps = 7; UIParticleProfiler.current.bridgeCacheHits = 9; UIParticleProfiler.current.maskMeshSubmissions = 2; UIParticleProfiler.EndFrame();
             recorder.BeginRecording("schema"); Call(recorder, "Update"); Call(recorder, "LateUpdate"); recorder.StopAndWrite();
             var folder = Path.Combine(UnityEngine.Application.persistentDataPath, "FxUIParticleBaseline");
             var file = Directory.GetFiles(folder).OrderBy(File.GetLastWriteTimeUtc).Last();
             var lines = File.ReadAllLines(file);
             Assert(lines[0].Contains("frames=1 ") && lines[0].Contains("implementation="), "capture metadata incorrect");
             var row = lines.First(x => x.Length > 0 && char.IsDigit(x[0])).Split(',');
-            Assert(row.Length == 25 && row[10] == "123" && row[16] == "7" && row[24] == "0", "diagnostic schema or frame alignment incorrect");
+            Assert(row.Length == 29 && row[10] == "123" && row[16] == "7" && row[24] == "0" && row[25] == "9" && row[27] == "2", "diagnostic schema or frame alignment incorrect");
         });
         Test("default particle profiling keeps counters without timing", () => {
             UIParticleProfiler.BeginFrame(400);

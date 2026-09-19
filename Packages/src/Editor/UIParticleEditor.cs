@@ -268,6 +268,9 @@ namespace Coffee.UIExtensions
 
             // Time Scale Multiplier
             EditorGUILayout.PropertyField(_timeScaleMultiplier);
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("m_RenderMeshes"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("m_RenderLines"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("m_SortBySourceOrder"));
 
             // Target ParticleSystems.
             EditorGUI.BeginChangeCheck();

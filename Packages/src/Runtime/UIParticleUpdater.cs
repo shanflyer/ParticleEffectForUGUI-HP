@@ -255,6 +255,21 @@ namespace Coffee.UIExtensions
             s_UpdatedGroupIds.Clear();
             try
             {
+                // Bridges use each instance's own source animation, independently of the
+                // particle simulation owner and its output slot layout.
+                for (var i = 0; i < s_FrameParticles.Count; i++)
+                {
+                    var uip = s_FrameParticles[i];
+                    if (uip == null || !uip.isActiveAndEnabled || uip.canvas == null
+                        || s_FailedPreparation.Contains(uip)) continue;
+                    try { uip.UpdateBridgeRenderers(); }
+                    catch (Exception e)
+                    {
+                        s_FailedPreparation.Add(uip);
+                        MarkBindingChanged(uip);
+                        ReportFailure(uip, e);
+                    }
+                }
                 // Explicit primaries take precedence over Auto members.
                 for (var i = 0; i < s_FrameParticles.Count; i++)
                 {
@@ -356,16 +371,10 @@ namespace Coffee.UIExtensions
                 s_NextRebalanceFrame = Time.frameCount + 120;
             }
             if (!rebalance) return;
-            // Largest workloads first. Only primary renderers consume simulation/bake time.
-            s_Simulators.Sort((a, b) => b.estimatedBakeCost.CompareTo(a.estimatedBakeCost));
-            float first = 0, second = 0;
-            for (var i = 0; i < s_Simulators.Count; i++)
-            {
-                var p = s_Simulators[i];
-                var weight = Math.Max(1, p.estimatedBakeCost);
-                if (first <= second) { p.bakePhase = 0.25f; first += weight; }
-                else { p.bakePhase = 0.75f; second += weight; }
-            }
+            // Absolute bake ticks align consumers. Retain the field for diagnostics, but
+            // no per-effect staggering: it kept a shared Canvas dirty on alternating frames.
+            for (var i = 0; i < s_Simulators.Count; i++) s_Simulators[i].bakePhase = 0;
+
         }
 
         private static void ReportFailure(UIParticle particle, Exception exception)
@@ -395,7 +404,7 @@ namespace Coffee.UIExtensions
                     }
                     if (s_FailedPreparation.Contains(uip) || uip.canvas == null) continue;
                     var renderer = uip.GetRendererIfExists(index);
-                    if (renderer != null && renderer.isActiveAndEnabled) results.Add(renderer);
+                    if (renderer != null && !renderer.isBridge && renderer.isActiveAndEnabled) results.Add(renderer);
                 }
 
                 if (members.Count == 0) s_SharingGroups.Remove(groupId);
@@ -409,7 +418,7 @@ namespace Coffee.UIExtensions
                         && !s_FailedPreparation.Contains(uip) && uip.useMeshSharing && uip.groupId == groupId)
                     {
                         var renderer = uip.GetRendererIfExists(index);
-                        if (renderer != null && renderer.isActiveAndEnabled) results.Add(renderer);
+                        if (renderer != null && !renderer.isBridge && renderer.isActiveAndEnabled) results.Add(renderer);
                     }
                 }
             }

@@ -22,7 +22,7 @@ namespace Coffee.UIExtensions
     [ExecuteAlways]
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasRenderer))]
-    public class UIParticle : MaskableGraphic, ISerializationCallbackReceiver
+    public partial class UIParticle : MaskableGraphic, ISerializationCallbackReceiver
     {
         public enum AutoScalingMode
         {
@@ -133,7 +133,7 @@ namespace Coffee.UIExtensions
         internal bool groupAllAlphaHidden;
         internal bool groupAllClipped;
         internal int activeRendererCount => _activeRendererCount;
-        internal int mergedRendererCount => _activeRendererCount == 1 && _renderers[0] != null && _renderers[0].isMerged ? 1 : 0;
+        internal int mergedRendererCount => _activeRendererCount > 0 && _renderers[0] != null && _renderers[0].isMerged ? 1 : 0;
         private readonly List<ParticleSystem> _mergeSystems = new List<ParticleSystem>();
         private bool _mergeModeStamp;
         private bool _fallbackToUnmerged;
@@ -185,7 +185,8 @@ namespace Coffee.UIExtensions
         }
 
         /// <summary>
-        /// 全局粒子网格烘焙率(Hz)。0 = 每帧烘焙;30 = 高帧率上限约 30Hz,低帧率隔帧烘焙,各 Renderer 错峰。
+        /// 全局粒子及 Mesh/Line/Trail 输出更新率(Hz)。0 = 每帧;正值按共同时间刻度更新。
+        /// 新增、失效和裁剪恢复允许立即刷新;低于目标帧率时每帧更新，不额外隔帧。
         /// </summary>
         public static int bakeFPS { get; set; }
 
@@ -721,13 +722,15 @@ namespace Coffee.UIExtensions
                 _renderers[i].Reset(i);
             }
 
+            CollectBridgeSources();
+
             _mergeModeStamp = mergeRenderers;
             _rendererBindingsDirty = true;
             _rebuildRenderers = false;
 
             // Set the ParticleSystem to the UIParticleRenderer. If the trail is enabled, set it additionally.
             var j = 0;
-            if (mergeRenderers && !_fallbackToUnmerged && m_AnimatableProperties.Length == 0
+            if (mergeRenderers && !m_SortBySourceOrder && !_fallbackToUnmerged && m_AnimatableProperties.Length == 0
                 && UIParticleRenderer.CanMerge(particleSystems))
             {
                 // [FxUIParticle 刀7] Merged mode: one renderer binds ALL systems; trail-enabled
@@ -764,6 +767,7 @@ namespace Coffee.UIExtensions
                     }
                 }
             }
+            BindBridgeSources(ref j);
         }
 
         internal bool SetSimulationOwner(bool value)
@@ -783,7 +787,7 @@ namespace Coffee.UIExtensions
         {
             hasOutput = canRender && _activeRendererCount > 0;
             alphaHidden = clipped = true;
-            if (!hasOutput) return;
+            if (!hasOutput || !canvas || !canvas.isActiveAndEnabled) return;
             for (var i = 0; i < _activeRendererCount; i++)
             {
                 var r = _renderers[i];
@@ -796,6 +800,9 @@ namespace Coffee.UIExtensions
 
         internal bool PrepareForUpdate()
         {
+            if (_renderMeshesStamp != m_RenderMeshes || _renderLinesStamp != m_RenderLines
+                || _sourceSortStamp != m_SortBySourceOrder)
+                _rebuildRenderers = true;
             if (_mergeModeStamp != mergeRenderers)
             {
                 _fallbackToUnmerged = false;
@@ -823,8 +830,13 @@ namespace Coffee.UIExtensions
 
             SpriteMaskNativeRendering.Sync(this);
             UpdateTransformScale();
+            OrderSourceOutputs();
             for (var i = 0; i < _activeRendererCount; i++)
-                if (_renderers[i] != null) _renderers[i].PrepareSpriteMask();
+                if (_renderers[i] != null)
+                {
+                    _renderers[i].MaintainBridgeSuppression();
+                    _renderers[i].PrepareSpriteMask();
+                }
             var changed = _rendererBindingsDirty || _sharingModeStamp != meshSharing || _sharingGroupStamp != groupId;
             _rendererBindingsDirty = false;
             _sharingModeStamp = meshSharing;
@@ -846,6 +858,7 @@ namespace Coffee.UIExtensions
         {
             get
             {
+                if (m_SortBySourceOrder) return true; // Group-wide separate slots also preserve mixed source ordering.
                 foreach (var ps in particles)
                     if (ps && ps.TryGetComponent<ParticleSystemRenderer>(out var renderer)
                         && renderer.maskInteraction != SpriteMaskInteraction.None) return true;
@@ -888,7 +901,7 @@ namespace Coffee.UIExtensions
         internal void ClearRendererMeshes()
         {
             for (var i = 0; i < _activeRendererCount; i++)
-                if (_renderers[i] != null && _renderers[i].isActiveAndEnabled) _renderers[i].ClearMesh();
+                if (_renderers[i] != null && !_renderers[i].isBridge && _renderers[i].isActiveAndEnabled) _renderers[i].ClearMesh();
         }
 
         private void UpdateTransformScale()
@@ -937,7 +950,7 @@ namespace Coffee.UIExtensions
             for (var i = 0; i < _activeRendererCount; i++)
             {
                 var r = _renderers[i];
-                if (r == null || r.IsIdleForFastPath()) continue;
+                if (r == null || r.isBridge || r.IsIdleForFastPath()) continue;
 
                 allIdle = false;
                 break;
@@ -951,7 +964,7 @@ namespace Coffee.UIExtensions
             for (var i = 0; i < _activeRendererCount; i++)
             {
                 var r = _renderers[i];
-                if (r == null) continue;
+                if (r == null || r.isBridge) continue;
 
                 r.UpdateMesh(bakeCamera);
             }

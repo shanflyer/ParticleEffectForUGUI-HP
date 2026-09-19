@@ -20,7 +20,15 @@ namespace Coffee.UIExtensions
         private Matrix4x4 _matrix;
         private bool _fullscreen;
         private bool _geometryValid;
+        private bool _meshPending = true, _materialPending = true;
+        private int _reference, _read, _write;
+        private float _cutoff;
+        private Texture _alphaTexture, _mainTexture;
+        private bool _materialValid, _materialFullscreen;
+
         public override bool raycastTarget => false;
+
+        internal void InvalidateGeometry() { _geometryValid = false; }
 
         internal static UIParticleSpriteMaskGraphic Create(UIParticle parent, string operation)
         {
@@ -38,18 +46,28 @@ namespace Coffee.UIExtensions
         {
             if (!_drawMaterial)
                 _drawMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
-            _drawMaterial.SetInt("_Stencil", reference);
-            _drawMaterial.SetInt("_StencilReadMask", read);
-            _drawMaterial.SetInt("_StencilWriteMask", write);
-            _drawMaterial.SetFloat("_Fullscreen", fullscreen ? 1 : 0);
-            _drawMaterial.SetFloat("_Cutoff", mask ? mask.alphaCutoff : 0);
             var sprite = mask ? mask.sprite : null;
-            _drawMaterial.mainTexture = sprite ? sprite.texture : Texture2D.whiteTexture;
-            _drawMaterial.SetTexture("_AlphaTex", sprite && sprite.associatedAlphaSplitTexture
-                ? sprite.associatedAlphaSplitTexture : Texture2D.whiteTexture);
-            _drawMaterial.SetFloat("_UseAlphaTex", sprite && sprite.associatedAlphaSplitTexture ? 1 : 0);
+            var texture = sprite ? sprite.texture : Texture2D.whiteTexture;
+            var alpha = sprite ? sprite.associatedAlphaSplitTexture : null;
+            var cutoff = mask ? mask.alphaCutoff : 0;
+            if (!_materialValid || _reference != reference || _read != read || _write != write
+                || _cutoff != cutoff || _mainTexture != texture || _alphaTexture != alpha
+                || _materialFullscreen != fullscreen)
+            {
+                _drawMaterial.SetInt("_Stencil", reference);
+                _drawMaterial.SetInt("_StencilReadMask", read);
+                _drawMaterial.SetInt("_StencilWriteMask", write);
+                _drawMaterial.SetFloat("_Fullscreen", fullscreen ? 1 : 0);
+                _drawMaterial.SetFloat("_Cutoff", cutoff);
+                _drawMaterial.mainTexture = texture;
+                _drawMaterial.SetTexture("_AlphaTex", alpha ? alpha : Texture2D.whiteTexture);
+                _drawMaterial.SetFloat("_UseAlphaTex", alpha ? 1 : 0);
+                _reference = reference; _read = read; _write = write; _cutoff = cutoff;
+                _mainTexture = texture; _alphaTexture = alpha; _materialFullscreen = fullscreen;
+                _materialValid = true; _materialPending = true;
+            }
             var textureChanged = sprite && _texture != sprite.texture;
-            if (!_geometryValid || _sprite != sprite || textureChanged || _matrix != matrix || _fullscreen != fullscreen)
+            if (!_geometryValid || _sprite != sprite || textureChanged || !_matrix.Equals(matrix) || _fullscreen != fullscreen)
             {
                 if (!_mesh) _mesh = new Mesh { name = "UIParticle SpriteMask", hideFlags = HideFlags.HideAndDontSave };
                 if (!_geometryValid || _sprite != sprite || textureChanged || _fullscreen != fullscreen)
@@ -73,6 +91,7 @@ namespace Coffee.UIExtensions
                 _matrix = matrix;
                 _fullscreen = fullscreen;
                 _geometryValid = true;
+                _meshPending = true;
             }
             // HP updates in willRenderCanvases, after the normal Graphic rebuild in some versions.
             // Submit here as well so animation, atlas UV and cutoff changes take effect this frame.
@@ -84,14 +103,28 @@ namespace Coffee.UIExtensions
             if (!_mesh || !_drawMaterial) return;
             canvasRenderer.cull = false;
             canvasRenderer.cullTransparentMesh = false;
-            canvasRenderer.SetMesh(_mesh);
-            canvasRenderer.materialCount = 1;
-            canvasRenderer.SetMaterial(_drawMaterial, 0);
-            canvasRenderer.SetTexture(_drawMaterial.mainTexture);
+            if (_meshPending)
+            {
+                canvasRenderer.SetMesh(_mesh);
+                UIParticleProfiler.current.maskMeshSubmissions++;
+                _meshPending = false;
+            }
+            if (_materialPending)
+            {
+                canvasRenderer.materialCount = 1;
+                canvasRenderer.SetMaterial(_drawMaterial, 0);
+                canvasRenderer.SetTexture(_drawMaterial.mainTexture);
+                _materialPending = false;
+            }
         }
 
+        protected override void OnEnable()
+        {
+            _meshPending = _materialPending = true;
+            base.OnEnable();
+        }
         protected override void UpdateGeometry() { Submit(); }
-        protected override void UpdateMaterial() { Submit(); }
+        protected override void UpdateMaterial() { _materialPending = true; Submit(); }
         protected override void OnDestroy()
         {
             Misc.Destroy(_mesh);

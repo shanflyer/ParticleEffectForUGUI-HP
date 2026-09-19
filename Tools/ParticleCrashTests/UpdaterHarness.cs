@@ -26,7 +26,7 @@ namespace Coffee.UIParticleInternal
 namespace Coffee.UIExtensions
 {
     public static class SpriteMaskResolver { public static void BeginFrame() { } }
-    public class UIParticleRenderer { public bool isActiveAndEnabled = true; }
+    public class UIParticleRenderer { public bool isActiveAndEnabled = true; public bool isBridge; }
     public class UIParticleAttractor { public bool isActiveAndEnabled = true; public void Attract() { } }
     public partial class UIParticle
     {
@@ -55,6 +55,7 @@ namespace Coffee.UIExtensions
         public bool PrepareForUpdate() { prepared++; onPrepare?.Invoke(); var result = changed; changed = false; return result; }
         public void UpdateTransformScale() { prepared++; }
         public void UpdateRenderers() { updated++; onUpdate?.Invoke(); }
+        public void UpdateBridgeRenderers() { }
         public void InvalidateRendererCaches() { invalidated++; }
         public void ClearRendererMeshes() { cleared++; }
         public void RequestUnmergedFallback() { hasUnmergedFallback = true; changed = true; }
@@ -196,12 +197,12 @@ static class UpdaterHarness
             next.isPrimary = true; next.changed = true; UnityEngine.Time.frameCount++; Refresh();
             Assert(!auto.simulationOwner && auto.releases == 1 && next.simulationOwner, "owner resource handoff failed");
         });
-        Test("weighted phase assignment balances unequal group costs", () => {
+        Test("shared cadence does not stagger unequal group costs", () => {
             var a = new UIParticle { groupId = 1, estimatedBakeCost = 10 };
             var b = new UIParticle { groupId = 2, estimatedBakeCost = 8 };
             var c = new UIParticle { groupId = 3, estimatedBakeCost = 2 };
             Add(c, b, a); Refresh();
-            Assert(a.bakePhase != b.bakePhase && b.bakePhase == c.bakePhase, "workload lanes are unbalanced");
+            Assert(a.bakePhase == 0 && b.bakePhase == 0 && c.bakePhase == 0, "effects must share absolute ticks");
         });
         Test("one visible replica prevents full group culling", () => {
             UIParticle.earlyCull = 2;

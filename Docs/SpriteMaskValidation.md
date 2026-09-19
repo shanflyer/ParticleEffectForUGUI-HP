@@ -1,5 +1,7 @@
 # SpriteMask 验证记录
 
+2026-09-19：迁移到 Unity 6000.4.7f1 / URP 17.4.0 后重新运行 D3D11 GPU 对照，**62/62 通过**。本次原生 EditMode 及 Player 脚本编译结果见 [Unity 6 功能补全记录](Unity6FeatureCompletion.md)。下文保留历史验证环境。
+
 日期：2026-09-16。实现与接入说明见 [SpriteMask.md](SpriteMask.md)。
 
 ## 后续修复：相邻 Scroll View 的 Toggle 泄漏
@@ -20,7 +22,7 @@
 | URP 14.0.11 GPU 原生对照及状态检查 | 54 / 54 通过（另检查实际使用 URP） |
 | 原材质颜色 / Alpha / Additive 结果 | 遮罩内逐像素一致 |
 | 遮罩清除 | 后续 UI 探针未检测到遗留位 |
-| 既有 HP managed 扩展回归 | 7 组共 101 项通过；基础调度 11 项另行通过 |
+| 既有 HP managed 扩展回归 | 6 组共 96 项通过（不含已排除的 Overdraw 检查）；基础调度 11 项另行通过 |
 | 项目已有程序集离线编译 | 通过 |
 | 独立验证工程 Windows x64 Development Player | Build Finished, Result: Success |
 | 已有粒子 Shader 修改 | 0 |

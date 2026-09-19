@@ -1,7 +1,8 @@
 {
     "name": "Coffee.UIParticle.PerformanceDemo",
     "references": [
-        "Coffee.UIParticle"
+        "Coffee.UIParticle",
+        "UnityEngine.UI"
     ],
     "optionalUnityReferences": [],
     "includePlatforms": [],

@@ -13,6 +13,24 @@ namespace Coffee.UIExtensions
         private bool _started;
         private bool _limited;
 
+        private long _lastTick;
+        private bool _tickStarted;
+
+        // Absolute ticks align all outputs, including late-enabled effects and replicas.
+        public bool AdvanceAtTick(float scaled, float unscaled, long tick, bool force,
+            out float scaledStep, out float unscaledStep)
+        {
+            _scaled += FiniteDelta(scaled);
+            _unscaled += FiniteDelta(unscaled);
+            scaledStep = unscaledStep = 0;
+            if (_tickStarted && _lastTick == tick && !force) return false;
+            _tickStarted = true;
+            _lastTick = tick;
+            scaledStep = _scaled; unscaledStep = _unscaled;
+            _scaled = _unscaled = 0;
+            return true;
+        }
+
         public void Reset() { this = default; }
 
         public bool Advance(float scaled, float unscaled, int fps, bool force,

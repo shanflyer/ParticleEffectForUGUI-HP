@@ -1,7 +1,9 @@
 {
     "name": "Coffee.UIParticle.Editor",
     "references": [
-        "Coffee.UIParticle"
+        "Coffee.UIParticle",
+        "UnityEngine.UI",
+        "UnityEditor.UI"
     ],
     "optionalUnityReferences": [],
     "includePlatforms": [

@@ -2,7 +2,8 @@
     "name": "Coffee.UIParticle.Editor.Tests",
     "references": [
         "Coffee.UIParticle",
-        "Coffee.UIParticle.Editor"
+        "Coffee.UIParticle.Editor",
+        "UnityEngine.UI"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

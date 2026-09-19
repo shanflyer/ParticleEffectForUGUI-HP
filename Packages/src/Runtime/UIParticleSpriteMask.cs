@@ -40,9 +40,17 @@ namespace Coffee.UIExtensions
     internal static class SpriteMaskResolver
     {
         private static SpriteMask[] s_Masks;
+        private static readonly Dictionary<ParticleSystemRenderer, List<SpriteMask>> s_Resolved =
+            new Dictionary<ParticleSystemRenderer, List<SpriteMask>>();
+        private static readonly Stack<List<SpriteMask>> s_Lists = new Stack<List<SpriteMask>>();
 
         // One scene query per HP update, lazy: projects without masked particles do not pay for it.
-        internal static void BeginFrame() { s_Masks = null; }
+        internal static void BeginFrame()
+        {
+            s_Masks = null;
+            foreach (var result in s_Resolved.Values) { result.Clear(); s_Lists.Push(result); }
+            s_Resolved.Clear();
+        }
 
         internal static SortingGroup Scope(Transform transform)
         {
@@ -85,10 +93,19 @@ namespace Coffee.UIExtensions
         {
             results.Clear();
             if (!renderer || renderer.maskInteraction == SpriteMaskInteraction.None) return;
-            if (s_Masks == null) s_Masks = UnityEngine.Object.FindObjectsOfType<SpriteMask>();
+            if (s_Resolved.TryGetValue(renderer, out var cached))
+            {
+                results.AddRange(cached);
+                UIParticleProfiler.current.maskResolveCacheHits++;
+                return;
+            }
+            if (s_Masks == null) s_Masks = UnityEngine.Object.FindObjectsByType<SpriteMask>(FindObjectsSortMode.None);
             foreach (var mask in s_Masks)
                 if (Affects(mask, renderer)) results.Add(mask);
-            results.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
+            results.Sort((a, b) => a.GetEntityId().CompareTo(b.GetEntityId()));
+            var snapshot = s_Lists.Count > 0 ? s_Lists.Pop() : new List<SpriteMask>();
+            snapshot.AddRange(results);
+            s_Resolved.Add(renderer, snapshot);
         }
     }
 
@@ -108,6 +125,11 @@ namespace Coffee.UIExtensions
 
         internal SpriteMaskDrawScope(UIParticleRenderer owner) { _owner = owner; }
 
+        internal void InvalidateGeometry()
+        {
+            foreach (var writer in _writers) if (writer) writer.InvalidateGeometry();
+        }
+
         internal void Prepare(ParticleSystemRenderer source, UIParticle parent, Matrix4x4 worldToOutput)
         {
             var previousBlocked = blocked;
@@ -117,6 +139,15 @@ namespace Coffee.UIExtensions
             blocked = false;
             _active = false;
             string error = null;
+            // Do not leave active stencil writers behind while their output is hidden.
+            // Re-resolve on visibility recovery; native Trail/particle simulation is separate.
+            if (!_owner.canvas || !_owner.canvas.isActiveAndEnabled
+                || (Application.isPlaying && UIParticle.earlyCull > 0 && _owner.alphaHidden))
+            {
+                SetNodesActive(false);
+                if (previousActive) _owner.SetMaterialDirty();
+                return;
+            }
             SpriteMaskResolver.Resolve(source, _masks);
             var interaction = source ? source.maskInteraction : SpriteMaskInteraction.None;
             if (interaction != SpriteMaskInteraction.None)
@@ -203,10 +234,15 @@ namespace Coffee.UIExtensions
 
         private void SetNodesActive(bool active)
         {
-            if (_before) _before.gameObject.SetActive(active);
-            if (_after) _after.gameObject.SetActive(active);
+            SetActive(_before, active);
+            SetActive(_after, active);
             for (var i = 0; i < _writers.Count; i++)
-                if (_writers[i]) _writers[i].gameObject.SetActive(active && i < _masks.Count);
+                SetActive(_writers[i], active && i < _masks.Count);
+        }
+
+        private static void SetActive(UIParticleSpriteMaskGraphic node, bool active)
+        {
+            if (node && node.gameObject.activeSelf != active) node.gameObject.SetActive(active);
         }
 
         internal Material Modify(Material source)

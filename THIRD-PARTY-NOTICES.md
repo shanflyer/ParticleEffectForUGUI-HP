@@ -36,18 +36,15 @@
 
 | 包 | 版本 | 说明 |
 | --- | --- | --- |
-| `com.unity.render-pipelines.universal` | 14.0.11 | **内嵌于** `Packages/com.unity.render-pipelines.universal@14.0.11`（含作者新增的 Editor-only `OverDrawRenderFeature` 诊断功能），许可见该目录下 `LICENSE.md` |
-| `com.unity.render-pipelines.core` | 14.0.11 | 由 URP 间接依赖 |
-| `com.unity.shadergraph` | 14.0.11 | 由 URP 间接依赖 |
-| `com.unity.test-framework` | 1.1.33 | 测试框架 |
-| `com.unity.ide.rider` | 3.0.36 | Rider 集成 |
+| `com.unity.render-pipelines.universal` | 17.4.0 | Unity 官方包（当前锁文件为 builtin），许可见包内 `LICENSE.md` |
+| `com.unity.render-pipelines.core` | 17.4.0 | 由 URP 间接依赖 |
+| `com.unity.shadergraph` | 17.4.0 | 由 URP 间接依赖 |
+| `com.unity.test-framework` | 1.6.0 | 测试框架 |
+| `com.unity.ide.rider` | 3.0.40 | Rider 集成 |
 | `com.unity.nuget.newtonsoft-json` | 3.2.2 | Newtonsoft.Json 封装（Json.NET 为 **MIT**，© James Newton-King） |
-| `com.unity.ai.navigation` | 1.1.5 | AI Navigation |
+| `com.unity.ai.navigation` | 2.0.13 | AI Navigation |
 
-> **关于内嵌 URP**：`Packages/com.unity.render-pipelines.universal@14.0.11` 是对官方 URP 14.0.11
-> 的源码内嵌副本，并附加了一个自定义的 OverDraw 诊断渲染特性（`Runtime/RendererFeatures/OverDrawRenderFeature.cs`
-> 与 `Runtime/OverDraw/*`）。若不需要该诊断功能，可在 `Packages/manifest.json` 中把它改回
-> `"com.unity.render-pipelines.universal": "14.0.11"` 并删除内嵌目录，由 Package Manager 解析官方包。
+> 当前工程通过 Package Manager 获取官方 URP 17.4.0；仓库不分发内嵌管线源码或自定义 Overdraw 渲染特性。
 
 ## 4. 第一方 / 作者自有
 

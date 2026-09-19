@@ -36,7 +36,7 @@ namespace FxUIParticleTest
         {
             "Draw Calls Count", "Batches Count", "SetPass Calls Count", "Triangles Count", "Vertices Count",
         };
-        const string CsvHeader = "frame,time_s,cpu_frame_ms,cpu_work_ms,gc_bytes,draw_calls,batches,setpass,triangles,vertices,particle_frame,prepare_ms,simulate_ms,bake_ms,combine_ms,submit_ms,bake_ops,baked_vertices,setmesh_ops,material_updates,meshes_created,active_renderers,merged_renderers,fallback_effects,timing_enabled";
+        const string CsvHeader = "frame,time_s,cpu_frame_ms,cpu_work_ms,gc_bytes,draw_calls,batches,setpass,triangles,vertices,particle_frame,prepare_ms,simulate_ms,bake_ms,combine_ms,submit_ms,bake_ops,baked_vertices,setmesh_ops,material_updates,meshes_created,active_renderers,merged_renderers,fallback_effects,timing_enabled,bridge_cache_hits,bridge_compare_ms,mask_mesh_submissions,mask_resolve_cache_hits";
         struct Sample
         {
             public int frame;
@@ -98,7 +98,7 @@ namespace FxUIParticleTest
                 gc = _gc.Valid ? _gc.LastValue : 0,
                 particle = UIParticleProfiler.completed
             };
-#if UNITY_EDITOR
+#if UNITY_EDITOR && !UNITY_6000_0_OR_NEWER
             sample.draws = UnityEditor.UnityStats.drawCalls;
             sample.batches = UnityEditor.UnityStats.batches;
             sample.setpass = UnityEditor.UnityStats.setPassCalls;
@@ -166,7 +166,7 @@ namespace FxUIParticleTest
                 _cpu = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "CPU Main Thread Frame Time");
                 _cpuWork = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "CPU Main Thread Frame Time (excluding vsync)");
                 _gc = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Allocated In Frame");
-#if !UNITY_EDITOR
+#if !UNITY_EDITOR || UNITY_6000_0_OR_NEWER
                 for (var i = 0; i < _renderStats.Length; i++)
                     _renderStats[i] = ProfilerRecorder.StartNew(ProfilerCategory.Render, RenderStatNames[i]);
 #endif
@@ -232,6 +232,9 @@ namespace FxUIParticleTest
                         line.Append(',').Append(q.meshesCreated).Append(',').Append(q.activeRenderers);
                         line.Append(',').Append(q.mergedRenderers).Append(',').Append(q.fallbackEffects);
                         line.Append(',').Append(q.detailedTiming ? 1 : 0);
+                        line.Append(',').Append(q.bridgeCacheHits);
+                        line.Append(',').Append(q.bridgeCompareMs.ToString("F4", CsvCulture));
+                        line.Append(',').Append(q.maskMeshSubmissions).Append(',').Append(q.maskResolveCacheHits);
                         w.WriteLine(line.ToString());
                     }
                     w.Write(BuildSummary());

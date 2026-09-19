@@ -63,8 +63,17 @@ crashlytics-build.properties
 *.pidb
 *.booproj
 *.svd
+__pycache__/
+*.pyc
 *.pdb
 *.mdb
 *.opendb
 *.VC.db
 sysinfo.txt
+
+# Local pipeline experiments are not part of the published solution.
+/Legacy~/
+/Assets/FxUIParticleTest/Overdraw/
+/Assets/FxUIParticleTest/Overdraw.meta
+/Assets/Demo/Performance Demo/UIParticle_PerformanceDemo/
+/Assets/Demo/Performance Demo/UIParticle_PerformanceDemo.meta

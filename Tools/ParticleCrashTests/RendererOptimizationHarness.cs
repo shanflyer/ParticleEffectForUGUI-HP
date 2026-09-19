@@ -72,7 +72,11 @@ namespace Coffee.UIExtensions
     internal class UIParticle { public static int earlyCull; public object[] m_AnimatableProperties = Array.Empty<object>(); }
     internal partial class UIParticleRenderer : Graphic
     {
+        internal void InvalidateBridgeCache() { }
         private bool _forceBake, _staticValid, _meshCleared, _uguiClipCulled;
+        private int _staticFrameCacheFrame = -1;
+        private bool isBridge => false;
+        private bool BridgeBindingIsInvalid() => false;
         private SpriteMaskDrawScope _spriteMask;
         private float _nextCullProbeTime;
         private Bounds _lastBounds = new Bounds { extents = new Vector3 { value = 1 } };

@@ -3,11 +3,12 @@ import argparse
 import json
 from pathlib import Path
 import subprocess
+from unity_environment import default_editor, framework_path, runtime_config
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--editor", type=Path, default=Path("D:/Unity 2022.3.49f1/Editor"))
+    parser.add_argument("--editor", type=Path, default=default_editor())
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = root / "TempDiag/crash_fix_compile"
@@ -15,12 +16,12 @@ def main():
     runtime = args.editor / "Data/NetCoreRuntime"
     dotnet = runtime / "dotnet.exe"
     csc = args.editor / "Data/DotNetSdkRoslyn/csc.dll"
-    framework = runtime / "shared/Microsoft.NETCore.App/6.0.21"
+    framework = framework_path(args.editor)
     bee = root / "Library/Bee/artifacts/1900b0aEDbg.dag"
 
     def run(command, log_name, expect_failure=False):
         result = subprocess.run([str(x) for x in command], cwd=root,
-                                capture_output=True, text=True, errors="replace")
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
         text = result.stdout + result.stderr
         (output / log_name).write_text(text, encoding="utf-8")
         print(text.strip())
@@ -36,6 +37,7 @@ def main():
         lines = source_rsp.read_text(encoding="utf-8-sig").splitlines()
         lines = [line for line in lines if not line.lstrip().startswith(
             ("-out:", "-refout:", "-analyzer:", "-additionalfile:"))]
+        lines = [line for line in lines if "Assets/FxUIParticleTest/Overdraw/" not in line.replace("\\", "/")]
         if name == "Coffee.UIParticle":
             known = {line.strip('"').replace('\\', '/') for line in lines}
             for src in (root / "Packages/src/Runtime").rglob("*.cs"):
@@ -71,9 +73,7 @@ def main():
         response = assembly.with_suffix(".rsp")
         response.write_text("\n".join(lines), encoding="utf-8")
         run([dotnet, csc, "@" + str(response)], f"updater_{variant}_compile.txt")
-        assembly.with_suffix(".runtimeconfig.json").write_text(json.dumps({"runtimeOptions": {
-            "tfm": "net6.0", "framework": {"name": "Microsoft.NETCore.App", "version": "6.0.21"}
-        }}), encoding="utf-8")
+        assembly.with_suffix(".runtimeconfig.json").write_text(json.dumps(runtime_config(framework)), encoding="utf-8")
         result = run([dotnet, assembly], f"updater_{variant}_results.txt", variant == "before")
         expected = "RESULT 2 passed, 7 failed" if variant == "before" else "RESULT 11 passed, 0 failed"
         if expected not in result:

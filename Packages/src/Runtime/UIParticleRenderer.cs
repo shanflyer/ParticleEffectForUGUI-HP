@@ -20,7 +20,7 @@ namespace Coffee.UIExtensions
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(CanvasRenderer))]
     [AddComponentMenu("")]
-    internal class UIParticleRenderer : MaskableGraphic
+    internal partial class UIParticleRenderer : MaskableGraphic
     {
         private static readonly CombineInstance[] s_CombineInstances = { new CombineInstance() };
         private static readonly List<Material> s_Materials = new List<Material>(2);
@@ -126,7 +126,8 @@ namespace Coffee.UIExtensions
         private Vector3[] _mergedStaticScale;
         private bool[] _mergedStaticActive;
 
-        public override Texture mainTexture => _isTrail ? null : _particleSystem.GetTextureForSprite();
+        public override Texture mainTexture => isBridge ? (material ? material.mainTexture : null)
+            : _isTrail ? null : _particleSystem.GetTextureForSprite();
 
         public override bool raycastTarget => false;
 
@@ -189,6 +190,7 @@ namespace Coffee.UIExtensions
 
         public void Reset(int index = -1)
         {
+            ReleaseBridge();
             ReleaseSpriteMask();
             if (_mergedPsRenderers != null)
             {
@@ -203,7 +205,7 @@ namespace Coffee.UIExtensions
                     _mergedPsRenderers[i].enabled = original;
                 }
             }
-            else if (_renderer != null)
+            else if (_renderer != null && !_isTrail)
             {
                 _renderer.enabled = _originalRendererEnabled;
             }
@@ -291,6 +293,8 @@ namespace Coffee.UIExtensions
 
         protected override void OnDestroy()
         {
+            Reset();
+            DestroyBridgeMeshes();
             ReleaseSpriteMask();
             // Also release if the generated renderer itself is removed/replaced.
             ReleaseMergedMeshes();
@@ -300,6 +304,8 @@ namespace Coffee.UIExtensions
         internal void InvalidateMeshCache()
         {
             _staticValid = false;
+            InvalidateBridgeCache();
+            _staticFrameCacheFrame = -1;
             _meshCleared = false;
             // Make the next active update refill the CanvasRenderer, even with Bake30.
             _forceBake = true;
@@ -317,14 +323,33 @@ namespace Coffee.UIExtensions
             }
             // RenderCull must not raise the simulation cadence: keep the same bakeFPS throttle and just skip Bake/Combine/SetMesh (fps == 0 means every game frame).
             var fps = _isTrail || !Application.isPlaying ? 0 : UIParticle.bakeFPS;
-            var ready = _bakeClock.Advance(Time.deltaTime, Time.unscaledDeltaTime,
-                fps, _forceBake, out scaledStep, out unscaledStep, _parent.bakePhase);
+            var ready = fps > 0
+                ? _bakeClock.AdvanceAtTick(Time.deltaTime, Time.unscaledDeltaTime,
+                    (long)System.Math.Floor(Time.unscaledTimeAsDouble * fps), _forceBake,
+                    out scaledStep, out unscaledStep)
+                : _bakeClock.Advance(Time.deltaTime, Time.unscaledDeltaTime,
+                    0, _forceBake, out scaledStep, out unscaledStep);
             if (ready) _forceBake = false;
             return ready;
         }
 
+        private bool _renderCullWasHidden;
         private bool ShouldSkipCulledBake()
         {
+            // Hidden consumers need no geometry probes; check their visibility directly.
+            // A sharing owner must still render for visible consumers on other Canvases.
+            var hidden = _parent.useMeshSharing ? _parent.groupAllAlphaHidden
+                : (!canvas.isActiveAndEnabled || (UIParticle.earlyCull > 0 && alphaHidden));
+            if (Application.isPlaying && hidden)
+            {
+                _renderCullWasHidden = true;
+                return true;
+            }
+            if (_renderCullWasHidden)
+            {
+                _renderCullWasHidden = false;
+                _forceBake = true;
+            }
             if (UIParticle.earlyCull <= 0 || !(_parent.useMeshSharing ? _parent.groupAllClipped : _uguiClipCulled)
                 || !Application.isPlaying) return false;
             // Bounds describe the last baked frame. Moving particles can re-enter
@@ -412,6 +437,7 @@ namespace Coffee.UIExtensions
             get
             {
                 if (_parent == null) return false; // Spare renderer retained for reuse.
+                if (isBridge) return BridgeBindingIsInvalid();
                 if (_particleSystem == null || _renderer == null) return true;
                 if (_mergedSystems == null)
                     return _boundTrails != _particleSystem.trails.enabled
@@ -622,7 +648,9 @@ namespace Coffee.UIExtensions
             ps.TryGetComponent(out _renderer);
             if (_renderer == null) { Reset(); return; }
             _originalRendererEnabled = _renderer.enabled;
-            _renderer.enabled = false;
+            // The body alone owns suppression; the trail must not save an already
+            // suppressed value and overwrite the body's restoration on Reset.
+            if (!isTrail) _renderer.enabled = false;
             _isTrail = isTrail;
             _renderer.GetSharedMaterials(s_Materials);
             var materialIndex = isTrail ? 1 : 0;
@@ -840,6 +868,7 @@ namespace Coffee.UIExtensions
 
         private void UpdateMeshInternal(Camera bakeCamera)
         {
+            if (isBridge) { UpdateBridge(bakeCamera); return; }
             // Merged mode: all non-trail systems bake into this single renderer.
             if (_mergedSystems != null)
             {
@@ -1648,6 +1677,7 @@ namespace Coffee.UIExtensions
 
         private void ClearCanvas()
         {
+            if (isBridge) InvalidateBridgeCache();
             canvasRenderer.Clear();
             _materialsDirty = true;
             _submittedMaterial = null;
@@ -1757,31 +1787,9 @@ namespace Coffee.UIExtensions
                     return Matrix4x4.Translate(psPos)
                            * Matrix4x4.Scale(scale);
                 case ParticleSystemSimulationSpace.World:
-                    if (_isTrail)
-                    {
-                        return Matrix4x4.Translate(psPos)
-                               * Matrix4x4.Scale(scale)
-                               * Matrix4x4.Translate(-psPos);
-                    }
-
-                    if (_mainEmitter)
-                    {
-                        if (_mainEmitter.IsLocalSpace())
-                        {
-                            return Matrix4x4.Translate(psPos)
-                                   * Matrix4x4.Scale(scale)
-                                   * Matrix4x4.Translate(-psPos);
-                        }
-                        else
-                        {
-                            psPos = _particleSystem.transform.position - _mainEmitter.transform.position;
-                            return Matrix4x4.Translate(psPos)
-                                   * Matrix4x4.Scale(scale)
-                                   * Matrix4x4.Translate(-psPos);
-                        }
-                    }
-
-                    return Matrix4x4.Scale(scale);
+                    return Matrix4x4.Translate(psPos)
+                           * Matrix4x4.Scale(scale)
+                           * Matrix4x4.Translate(-psPos);
                 case ParticleSystemSimulationSpace.Custom:
                     return Matrix4x4.Translate(_particleSystem.main.customSimulationSpace.position.GetScaled(scale))
                            * Matrix4x4.Scale(scale);
@@ -1809,16 +1817,13 @@ namespace Coffee.UIExtensions
                 var particles = ParticleSystemExtensions.GetParticleArray(size);
                 _particleSystem.GetParticles(particles, size);
 
-                // Resolution resolver:
-                // (psPos / scale) / (prevPsPos / prevScale) -> psPos * scale.inv * prevPsPos.inv * prevScale
-                var modifier = psPos.GetScaled(
-                    scale.Inverse(),
-                    _prevPsPos.Inverse(),
-                    _prevScale);
+                // Preserve the scaled offset relative to the emitter, including an
+                // emitter at zero or crossing the world origin.
+                var modifier = _prevScale.GetScaled(scale.Inverse());
                 for (var i = 0; i < size; i++)
                 {
                     var particle = particles[i];
-                    particle.position = particle.position.GetScaled(modifier);
+                    particle.position = psPos + (particle.position - _prevPsPos).GetScaled(modifier);
                     particles[i] = particle;
                 }
 
@@ -1857,6 +1862,7 @@ namespace Coffee.UIExtensions
 
             // get world position.
             var isLocalSpace = _particleSystem.IsLocalSpace();
+            var useRealPosition = isLocalSpace || _particleSystem.IsWorldSpace();
             var psTransform = _particleSystem.transform;
             var originLocalPosition = psTransform.localPosition;
             var originLocalRotation = psTransform.localRotation;
@@ -1871,7 +1877,7 @@ namespace Coffee.UIExtensions
                 if (rateOverDistance && !paused && _isPrevStored)
                 {
                     // (For rate-over-distance emission,) Move to previous scaled position, simulate (delta = 0).
-                    var prevScaledPos = isLocalSpace
+                    var prevScaledPos = useRealPosition
                         ? _prevPsPos
                         : _prevPsPos.GetScaled(_prevScale.Inverse());
                     psTransform.SetPositionAndRotation(prevScaledPos, originWorldRotation);
@@ -1879,7 +1885,7 @@ namespace Coffee.UIExtensions
                 }
 
                 // Move to scaled position, simulate, revert to origin position.
-                var scaledPos = isLocalSpace
+                var scaledPos = useRealPosition
                     ? originWorldPosition
                     : originWorldPosition.GetScaled(scale.Inverse());
                 psTransform.SetPositionAndRotation(scaledPos, originWorldRotation);
@@ -1899,28 +1905,10 @@ namespace Coffee.UIExtensions
 #if UNITY_EDITOR
         private void SimulateForEditor(Vector3 diffPos, Vector3 scale)
         {
-            // Extra world simulation.
-            var isWorldSpace = _particleSystem.IsWorldSpace();
-            if (isWorldSpace && 0 < Vector3.SqrMagnitude(diffPos))
-            {
-                BeginSample("[UIParticle] Bake Mesh > Extra world simulation");
-                diffPos.x *= 1f - 1f / Mathf.Max(0.001f, scale.x);
-                diffPos.y *= 1f - 1f / Mathf.Max(0.001f, scale.y);
-                diffPos.z *= 1f - 1f / Mathf.Max(0.001f, scale.z);
-
-                var size = _particleSystem.particleCount;
-                var particles = ParticleSystemExtensions.GetParticleArray(size);
-                _particleSystem.GetParticles(particles, size);
-                for (var i = 0; i < size; i++)
-                {
-                    var p = particles[i];
-                    p.position += diffPos;
-                    particles[i] = p;
-                }
-
-                _particleSystem.SetParticles(particles, size);
-                EndSample();
-            }
+            // The editor preview already simulates at real world positions. Only
+            // resolution changes require remapping; movement must not receive the
+            // old world-origin scaling compensation a second time.
+            ResolveResolutionChange(_particleSystem.transform.position, scale);
         }
 #endif
 
@@ -1933,7 +1921,8 @@ namespace Coffee.UIExtensions
                 s_Mpb = new MaterialPropertyBlock();
             }
 
-            _renderer.GetPropertyBlock(s_Mpb);
+            if (isBridge) _bridgeSource.GetPropertyBlock(s_Mpb);
+            else _renderer.GetPropertyBlock(s_Mpb);
             if (s_Mpb.isEmpty) return;
 
             // #41: Copy the value from MaterialPropertyBlock to CanvasRenderer

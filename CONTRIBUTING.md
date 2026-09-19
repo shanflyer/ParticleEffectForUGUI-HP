@@ -7,7 +7,7 @@
 
 请在 [Issues](https://github.com/shanflyer/ParticleEffectForUGUI-HP/issues) 中选择合适的模板，并尽量提供：
 
-- Unity 版本（本工程基线为 **2022.3.49f1**）、渲染管线版本、目标平台；
+- Unity 版本（本工程基线为 **6000.4.7f1**）、渲染管线版本、目标平台；
 - 复现步骤与最小复现场景；
 - 相关开关的取值：`mergeRenderers` / `useGroupCache` / `bakeFPS` / `earlyCull` / `staticMeshCache` / `fastBindingMode` / `meshSharing`；
 - 报错堆栈、Profiler 截图或采集出的 CSV。
@@ -19,7 +19,7 @@
 1. Fork 本仓库并基于 `main` 创建分支；
 2. 保持改动**聚焦**：与上游同步的部分尽量只改 `Packages/src/` 下的必要文件；
 3. 新增/修改优化时，请说明**收益前提、代价与生效条件**，并在 `CHANGELOG.md` 中记录；
-4. 提交前请在 Unity 2022.3.49f1 中打开工程确认 **0 编译错误**，必要时运行 `Tools/ParticleCrashTests/run_extended.py`；
+4. 提交前请在 Unity 6000.4.7f1 中打开工程确认 **0 编译错误**，必要时运行 `Tools/ParticleCrashTests/run_extended.py`；
 5. 不要在提交中包含 `Library/`、`Logs/`、`UserSettings/`、`Temp/`、`*.csproj`、`*.sln` 等生成物。
 
 ## 代码风格

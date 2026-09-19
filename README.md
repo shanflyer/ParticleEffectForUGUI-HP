@@ -1,8 +1,8 @@
 # ParticleEffectForUGUI-HP
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-![Unity](https://img.shields.io/badge/Unity-2022.3.49f1-57b9d3.svg)
-![URP](https://img.shields.io/badge/URP-14.0.11-57b9d3.svg)
+![Unity](https://img.shields.io/badge/Unity-6000.4.7f1-57b9d3.svg)
+![URP](https://img.shields.io/badge/URP-17.4.0-57b9d3.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-lightgrey.svg)
 
 > 一个面向**移动端大量 UI 粒子特效**的性能定制 Fork，基于 [mob-sakai/ParticleEffectForUGUI](https://github.com/mob-sakai/ParticleEffectForUGUI)（UI Particle，MIT 许可）。
@@ -12,7 +12,9 @@
 复用已有粒子 Shader 的 Stencil 能力，不替换其着色逻辑。见 [接入说明](Docs/SpriteMask.md)和
 [验证记录](Docs/SpriteMaskValidation.md)；对照场景位于 `Assets/FxUIParticleTest/SpriteMaskDemo/SpriteMaskComparison.unity`。
 
-**English TL;DR** — This is a performance-oriented fork of `ParticleEffectForUGUI` (upstream v4.14.0, MIT) plus a reproducible Unity 2022.3 + URP 14 benchmark project that compares UI-particle rendering against the classic Camera + RenderTexture approach. See [Custom optimizations](#定制优化特性) and [Benchmark scenes](#测试与评测场景).
+**Unity 6 扩展**：支持独立 MeshRenderer、TrailRenderer、LineRenderer；Inspector 的 Render Meshes / Render Lines 默认开启，Sort By Source Order 可按源排序。接入、边界和本次验证见 [Unity 6 功能补全记录](Docs/Unity6FeatureCompletion.md)。仓库不包含内嵌管线源码或自定义 Renderer Feature；评测工程通过 Package Manager 使用官方 URP。
+
+**English TL;DR** — This is a performance-oriented fork of `ParticleEffectForUGUI` (upstream v4.14.0, MIT) plus a reproducible Unity 6.4 + URP 17.4 benchmark project that compares UI-particle rendering against the classic Camera + RenderTexture approach. See [Custom optimizations](#定制优化特性) and [Benchmark scenes](#测试与评测场景).
 
 ---
 
@@ -59,7 +61,7 @@
 | --- | --- | --- | --- |
 | `UIParticle.mergeRenderers` | `bool` | 把同一个 `UIParticle` 下全部非 Trail 的 ParticleSystem 合并到**一个** `UIParticleRenderer` 中烘焙与提交，显著降低 Renderer / 材质提交 / 合批节点数量 | 需粒子系统「可合并」（材质、贴图、Trail 材质、顶点流一致）；含 `AnimatableProperties`（CanvasAnimator）的效果自动回退原版路径；用户自定义 `MaterialPropertyBlock` 会阻止合并 |
 | `UIParticle.useGroupCache` | `bool` | MeshSharing 组成员查找改为**字典缓存**，替代原版的全局扫描 | 缓存需要随组成员增删失效；仅共享开启时才有收益 |
-| `UIParticle.bakeFPS` | `int` | 全局粒子网格**烘焙降频**（Hz）。`0` = 每帧烘焙；`30` = 高帧率下上限约 30Hz，低帧率隔帧烘焙，各 Renderer 错峰调度 | **会改变更新频率，不是等画质优化**；比较时须记录该值 |
+| `UIParticle.bakeFPS` | `int` | 全局粒子网格**烘焙降频**（Hz）。`0` = 每帧烘焙；`30` = 高帧率下上限约 30Hz，低帧率每帧更新，按全局时间刻度统一调度 | **会改变更新频率，不是等画质优化**；比较时须记录该值 |
 | `UIParticle.earlyCull` | `int` | `0` 关闭；`1` RenderCull：UGUI 已判裁剪/出屏时仅停止 Bake/Combine/SetMesh，模拟继续以保持时间连续；`2` = RenderCull + FullCull：整页累积 alpha≈0 时连模拟一起停，恢复可见后从停点继续 | 依赖 UGUI 的 `Cull(clipRect, validRect)` 回调；MeshSharing 按整组可见性裁剪 |
 | `UIParticle.staticMeshCache` | `bool` | 全部系统暂停且相关 Transform / Canvas 状态未变时，整帧跳过 Simulate/Bake/Combine/SetMesh | 运行时修改绑定状态需调用 `MarkParticleDirty()` / `InvalidateMeshCache()` 显式失效 |
 | `UIParticle.fastBindingMode` | `bool` | 把运行时绑定状态的「自动侦测」改为「调用方显式通知」，跳过每帧对材质 / 贴图 / trail / renderer 的复核 | 开启后修改 `sharedMaterial`、`trailMaterial`、`mainTexture`、`trails.enabled`、TSA sprite 等须调用 `MarkBindingDirty()`；仅当项目承诺运行期基本不改这些时开启 |
@@ -79,11 +81,11 @@
 
 | 项目 | 版本 |
 | --- | --- |
-| Unity | **2022.3.49f1**（`m_EditorVersionWithRevision: 4dae1bb8668d`） |
-| 渲染管线 | **Universal RP 14.0.11**（内嵌于 `Packages/com.unity.render-pipelines.universal@14.0.11`） |
+| Unity | **6000.4.7f1**（`m_EditorVersionWithRevision: f3c3c4248748`） |
+| 渲染管线 | **Universal RP 17.4.0**（Unity Registry 包） |
 | UI Particle 包 | **com.coffee.ui-particle 4.14.0**（Fork 版，内嵌于 `Packages/src`） |
 | 目标平台 | Android / iOS（兼容 Editor 与桌面平台） |
-| 其他依赖 | `com.unity.test-framework` 1.1.33、`com.unity.nuget.newtonsoft-json` 3.2.2、`com.unity.ai.navigation` 1.1.5、Rider 3.0.36 |
+| 其他依赖 | `com.unity.test-framework` 1.6.0、`com.unity.nuget.newtonsoft-json` 3.2.2、`com.unity.ai.navigation` 2.0.13、Rider 3.0.40 |
 
 > `Packages/manifest.json` 中的 `com.coffee.development` / `com.coffee.minimal-resource` / `com.coffee.nano-monitor` 通过 Git URL 从 `mob-sakai/Coffee.Internal` 拉取，首次打开工程需要联网。
 
@@ -91,7 +93,7 @@
 
 ## 快速开始
 
-1. 安装 **Unity 2022.3.49f1**（Unity Hub）。
+1. 安装 **Unity 6000.4.7f1**（Unity Hub）。
 2. 克隆仓库并用 Unity Hub 打开工程根目录：
 
    ```bash
@@ -132,9 +134,9 @@ ParticleEffectForUGUI-HP/
 ├─ Packages/
 │  ├─ src/                       # Fork 后的 UI Particle 包（含全部定制优化）
 │  ├─ com.shanflyer.framework/   # 项目自有框架（内嵌）
-│  ├─ com.unity.render-pipelines.universal@14.0.11/  # 内嵌 URP（含自定义 OverDraw 诊断 Feature）
-│  ├─ manifest.json / packages-lock.json
-├─ ProjectSettings/              # Unity 工程设置（ProjectVersion = 2022.3.49f1）
+│  ├─ manifest.json              # URP 17.4 / UGUI 2.0 / Unity 6 依赖
+│  └─ packages-lock.json
+├─ ProjectSettings/              # Unity 工程设置（ProjectVersion = 6000.4.7f1）
 ├─ Docs/                         # 方案与优化文档
 ├─ Tools/                        # 离线回归、Profiler 导出脚本
 ├─ LICENSE / README.md / THIRD-PARTY-NOTICES.md / CONTRIBUTING.md / CHANGELOG.md
@@ -176,7 +178,7 @@ ParticleEffectForUGUI-HP/
 ## 离线回归与诊断工具
 
 - `Tools/ParticleCrashTests/` — 不启动 Unity 的离线编译与逻辑回归：
-  使用本机 Unity 自带的 C# 编译器与 FXC，抽取真实运行时源码配合托管替身，覆盖调度器、计时器、Renderer 优化、采集控制、粒子数量配置、工具函数等，合计 **98 个修复后检查**。
+  使用本机 Unity 自带的 C# 编译器，抽取真实运行时源码配合托管替身，覆盖调度器、计时器、Renderer 优化、采集控制、粒子数量配置、工具函数等，合计 **96 个修复后检查**。
   运行：`python Tools/ParticleCrashTests/run_extended.py`（详见 [README](./Tools/ParticleCrashTests/README.md)）。
 
 - `Tools/ProfilerAI/` — 从 Unity Profiler 原始数据中抽取单帧、转换为可分析格式的辅助脚本。
@@ -228,9 +230,8 @@ UIParticle.fastBindingMode = false; // 运行时绑定状态由调用方显式�
 
 - 本 Fork 的优化收益与**具体的特效构成、材质分布、是否可合并**强相关；对「全部同材质、可合并」的压测场景收益最大，真实项目中混合材质场景需逐项实测。
 - `bakeFPS < 60`、`earlyCull = 2`、`fastBindingMode = true` 都会**改变行为语义**（更新频率 / 模拟连续性 / 绑定自动侦测），对比时必须记录开关键值，且不要在采集过程中修改配置。
-- 自定义的 `OverDrawRenderFeature` 仅在 **Editor + 支持 Compute Shader / AsyncGPUReadback** 的设备上生效。
 - `Assets/FxUIParticleTest/Effects` 中的特效资源仅用于性能评测，不代表生产美术规范。
-- 本仓库未附带 CI（需要 Unity 许可证）；提交前请本地用 2022.3.49f1 打开工程确认 **0 编译错误**。
+- 本仓库未附带 CI（需要 Unity 许可证）；提交前请本地用 6000.4.7f1 打开工程确认 **0 编译错误**。
 
 ---
 

@@ -7424,7 +7424,7 @@ public class FrameDebuggerExport : EditorWindow
     private string BuildAiRenderFeaturesJson()
     {
         var sb = new StringBuilder(16384);
-        var asset = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset as ScriptableObject;
+        var asset = UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline as ScriptableObject;
         sb.AppendLine("{");
         WriteJsonProperty(sb, "schemaVersion", "framedebug-ai-renderfeatures/v1", true);
         WriteJsonProperty(sb, "pipelineAssetName", asset != null ? asset.name : "", true);
@@ -8141,7 +8141,7 @@ public class FrameDebuggerExport : EditorWindow
 
     private static IEnumerable<RenderFeatureSnapshot> BuildRenderFeatureSnapshotsUncached()
     {
-        var asset = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset as ScriptableObject;
+        var asset = UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline as ScriptableObject;
         foreach (var rendererData in GetRendererDataObjects(asset))
         {
             foreach (var feature in GetRendererFeatures(rendererData))

@@ -1,6 +1,8 @@
 {
     "name": "Coffee.UIParticle",
-    "references": [],
+    "references": [
+        "UnityEngine.UI"
+    ],
     "optionalUnityReferences": [],
     "includePlatforms": [],
     "excludePlatforms": [],

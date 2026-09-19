@@ -1,7 +1,8 @@
 {
     "name": "Coffee.UIParticle.Tests",
     "references": [
-        "Coffee.UIParticle"
+        "Coffee.UIParticle",
+        "UnityEngine.UI"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

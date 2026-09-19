@@ -40,6 +40,7 @@ namespace Coffee.UIExtensions
             if (!Application.isBatchMode) throw new InvalidOperationException("Run in an isolated batchmode project with graphics enabled.");
             var originalPipeline = GraphicsSettings.defaultRenderPipeline;
             var qualityPipeline = QualitySettings.renderPipeline;
+            var originalAntiAliasing = QualitySettings.antiAliasing;
             var originalScene = SceneManager.GetActiveScene();
             var testScene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             SceneManager.SetActiveScene(testScene);
@@ -63,6 +64,7 @@ namespace Coffee.UIExtensions
             {
                 GraphicsSettings.defaultRenderPipeline = originalPipeline;
                 QualitySettings.renderPipeline = qualityPipeline;
+                QualitySettings.antiAliasing = originalAntiAliasing;
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 if (originalScene.IsValid()) SceneManager.SetActiveScene(originalScene);
                 foreach (var obj in s_Resources) if (obj) Object.DestroyImmediate(obj);

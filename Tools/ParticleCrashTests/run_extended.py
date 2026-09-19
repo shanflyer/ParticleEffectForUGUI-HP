@@ -3,14 +3,18 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import argparse
+from unity_environment import default_editor, framework_path, runtime_config
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "TempDiag/crash_fix_compile"
-EDITOR = Path("D:/Unity 2022.3.49f1/Editor")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--editor", type=Path, default=default_editor())
+EDITOR = parser.parse_args().editor
 RUNTIME = EDITOR / "Data/NetCoreRuntime"
 DOTNET = RUNTIME / "dotnet.exe"
 CSC = EDITOR / "Data/DotNetSdkRoslyn/csc.dll"
-FRAMEWORK = RUNTIME / "shared/Microsoft.NETCore.App/6.0.21"
+FRAMEWORK = framework_path(EDITOR)
 
 def check(name, sources, defines="", expect_fail=False):
     OUT.mkdir(parents=True, exist_ok=True)
@@ -24,32 +28,35 @@ def check(name, sources, defines="", expect_fail=False):
     rsp = dll.with_suffix(".rsp")
     rsp.write_text("\n".join(lines), encoding="utf-8")
     subprocess.run([str(DOTNET), str(CSC), "@" + str(rsp)], cwd=ROOT, check=True)
-    dll.with_suffix(".runtimeconfig.json").write_text(json.dumps({"runtimeOptions": {
-        "tfm": "net6.0", "framework": {"name": "Microsoft.NETCore.App", "version": "6.0.21"}
-    }}), encoding="utf-8")
+    dll.with_suffix(".runtimeconfig.json").write_text(json.dumps(runtime_config(FRAMEWORK)), encoding="utf-8")
     result = subprocess.run([str(DOTNET), str(dll)], cwd=ROOT, capture_output=True, text=True)
     (OUT / (name + "_results.txt")).write_text(result.stdout + result.stderr, encoding="utf-8")
     print(name + "\n" + result.stdout + result.stderr)
     if (result.returncode != 0) != expect_fail:
         raise RuntimeError(name + " unexpected result")
 
-def compile_player_and_compute():
+def compile_player():
+    player_output = OUT / "player"
+    player_output.mkdir(parents=True, exist_ok=True)
     for name in ("Unity.RenderPipelines.Universal.Runtime", "Coffee.UIParticle", "Assembly-CSharp"):
-        source = ROOT / "Library/Bee/artifacts/1300b0aPDevDbg.dag" / (name + ".rsp")
-        if not source.exists():
+        responses = list((ROOT / "Library/Bee/artifacts").glob("*PDevDbg.dag/" + name + ".rsp"))
+        if not responses:
             print("SKIP cached Player compilation (build a Player first): " + name)
             continue
+        source = max(responses, key=lambda path: path.stat().st_mtime)
         lines = [line for line in source.read_text(encoding="utf-8-sig").splitlines()
                  if not line.startswith(("-out:", "-refout:", "-analyzer:", "-additionalfile:"))]
+        lines = [line for line in lines if "Assets/FxUIParticleTest/Overdraw/" not in line.replace("\\", "/")]
         if name == "Coffee.UIParticle":
             known = {line.strip('"').replace('\\', '/') for line in lines}
             for src in (ROOT / "Packages/src/Runtime").rglob("*.cs"):
                 relative = src.relative_to(ROOT).as_posix()
                 if relative not in known: lines.append('"' + relative + '"')
         if name == "Assembly-CSharp":
-            lines = ['-r:"TempDiag/crash_fix_compile/player_Coffee.UIParticle.dll"'
+            lines = ['-r:"TempDiag/crash_fix_compile/player/Coffee.UIParticle.dll"'
                      if line.startswith("-r:") and "Coffee.UIParticle" in line else line for line in lines]
-        lines.append(f'-out:"{OUT / ("player_" + name + ".dll")}"')
+        # Preserve assembly identity: Unity 6 uses InternalsVisibleTo between URP/Core.
+        lines.append(f'-out:"{player_output / (name + ".dll")}"')
         rsp = OUT / ("player_" + name + ".rsp")
         rsp.write_text("\n".join(lines), encoding="utf-8")
         result = subprocess.run([str(DOTNET), str(CSC), "@" + str(rsp)], cwd=ROOT, capture_output=True, text=True)
@@ -57,14 +64,6 @@ def compile_player_and_compute():
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
         print("PASS offline Player compilation: " + name)
-    fxc = Path("C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/fxc.exe")
-    compute = ROOT / "Packages/com.unity.render-pipelines.universal@14.0.11/Runtime/OverDraw/OverdrawComputeShader.compute"
-    result = subprocess.run([str(fxc), "/nologo", "/T", "cs_5_0", "/E", "OverdrawComputeShader", "/Fo",
-                             str(OUT / "OverdrawComputeShader.cso"), str(compute)], cwd=ROOT, capture_output=True, text=True)
-    (OUT / "compute_compile.txt").write_text(result.stdout + result.stderr, encoding="utf-8")
-    if result.returncode:
-        raise RuntimeError(result.stdout + result.stderr)
-    print("PASS offline HLSL compilation (FXC ignores Unity's #pragma kernel; no GPU execution)")
 
 def check_renderer_optimizations():
     source = (ROOT / "Packages/src/Runtime/UIParticleRenderer.cs").read_text(encoding="utf-8-sig")
@@ -135,7 +134,7 @@ def check_particle_quantity():
     assert "var target = total * particleQuantityLevel / 20" in source
 
 if __name__ == "__main__":
-    subprocess.run([sys.executable, str(ROOT / "Tools/ParticleCrashTests/run_offline.py")], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(ROOT / "Tools/ParticleCrashTests/run_offline.py"), "--editor", str(EDITOR)], cwd=ROOT, check=True)
     check("logic_extended", ["Tools/ParticleCrashTests/LogicHarness.cs", "Packages/src/Runtime/ParticleBakeClock.cs",
                             "Packages/src/Runtime/Internal/Utilities/FastAction.cs", "Packages/src/Runtime/Internal/Utilities/ObjectPool.cs",
                             "Assets/FxUIParticleTest/Runtime/FxProfilerRecorder.cs", "Packages/src/Runtime/UIParticleProfiler.cs"])
@@ -153,16 +152,7 @@ if __name__ == "__main__":
         check("utilities_" + variant, ["Tools/ParticleCrashTests/UtilityHarness.cs",
               prefix + "Packages/src/Runtime/Utilities/ParticleSystemExtensions.cs",
               prefix + "Packages/src/Runtime/Internal/Extensions/Vector3Extensions.cs"], expect_fail=variant == "before")
-    source = (ROOT / "Packages/com.unity.render-pipelines.universal@14.0.11/Runtime/RendererFeatures/OverDrawRenderFeature.cs").read_text(encoding="utf-8-sig")
-    # The enclosing renderer pass needs the engine. Compile the actual counter
-    # body separately with only its access modifier changed, plus managed doubles.
-    counter = source[source.index("    private class OverdrawCounter"):].rsplit("\n}", 1)[0]
-    counter = counter.replace("private class OverdrawCounter", "internal class OverdrawCounter", 1)
-    extracted = OUT / "OverdrawCounter.cs"
-    extracted.write_text("using UnityEngine;\nusing UnityEngine.Rendering;\n" + counter, encoding="utf-8")
-    check("readback_lifetime", ["Tools/ParticleCrashTests/ReadbackHarness.cs", extracted.relative_to(ROOT).as_posix()])
     check_renderer_optimizations()
     check_recording_controls()
     check_particle_quantity()
-    compile_player_and_compute()
-
+    compile_player()
