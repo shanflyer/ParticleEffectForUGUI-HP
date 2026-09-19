@@ -3,9 +3,16 @@
 本项目基于 [ParticleEffectForUGUI](https://github.com/mob-sakai/ParticleEffectForUGUI)（MIT）之上做性能定制 Fork。
 上游包自身的版本历史见 [`Packages/src/CHANGELOG.md`](./Packages/src/CHANGELOG.md)。
 
-## [Unreleased]
+## [2.0.0] - 2026-09-19
 
-### Unity 6 与动态输出（2026-09-19）
+### 升级注意
+
+- 工程与包的最低 Unity 基线迁移到 6000.4，不再支持 v1 的 Unity 2022 环境。
+- `renderMeshes` / `renderLines` 默认开启：升级前检查 UIParticle 子层级中是否有应保持原生绘制的独立 Renderer，需要时关闭对应选项。
+- `bakeFPS` 从错峰更新改为共同时间刻度；需重新评估更新观感与 CPU 峰值。
+- 仓库 Release 版本为 2.0.0；包内 4.14.0 保留上游基线标识，固定 HP 版本请使用 Git 标签。
+
+### Unity 6 与动态输出
 
 - 基线迁移到 Unity 6000.4.7f1、UGUI 2.0.0、官方 URP 17.4.0；移除内嵌 URP 源码，排除自定义管线实验。
 - 新增独立 MeshRenderer / LineRenderer / TrailRenderer 桥接、源排序、状态恢复及显式 SpriteMask Dirty API。
