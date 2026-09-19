@@ -22,7 +22,7 @@
 
 ## 2. Coffee.Internal（通过 Git URL 依赖，未随仓库分发）
 
-在 `Packages/manifest.json` 中以 Git URL 引用，克隆工程时由 Unity 自动拉取：
+在 `Packages/manifest.json` 中以 Git URL 引用，首次导入工程时由 Unity Package Manager 解析：
 
 | 包 | 许可 | 来源 |
 | --- | --- | --- |
@@ -32,7 +32,7 @@
 
 ## 3. Unity 官方包
 
-以下包随 Unity 分发，适用 Unity 各自的许可条款（Unity Companion License / Unity Package 条款）：
+以下为工程使用的主要 Unity 包；实际解析版本见 `Packages/packages-lock.json`，许可以各包附带文本为准：
 
 | 包 | 版本 | 说明 |
 | --- | --- | --- |

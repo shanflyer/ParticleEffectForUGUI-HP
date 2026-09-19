@@ -4,7 +4,7 @@ HP 读取原 `ParticleSystemRenderer.maskInteraction`，在 Canvas 中为每个�
 
 `初始化临时 Stencil 位 → 写入有效 SpriteMask 的并集 → 原粒子材质绘制 → 清除临时位`
 
-本次没有修改任何已有粒子 Shader，也不替换粒子的 Shader。新增的
+桥接不替换原粒子 Shader。内部的
 `Hidden/UIParticle/SpriteMask` 只负责写入/清除，不输出颜色。
 
 ## 接入
@@ -93,7 +93,10 @@ Inside 的参考值包含临时位，Outside 不包含；粒子本身不写 Sten
 不依赖 `MarkBindingDirty()`，也不会被 `bakeFPS`、暂停、静态网格缓存或 fast binding 跳过。
 材质本身替换仍遵循 HP 原有的 fast binding 通知约定。
 场景扫描每次 HP 更新最多一次，没有 Masking 的项目不会扫描 SpriteMask。
-节点复用，几何按 Sprite/纹理/变换变化更新；对象池停用时立即撤下绘制并安全释放节点。
+节点复用，几何和材质分别失效，未变化时跳过重复网格提交；对象池停用时撤下绘制。
+原地修改同一个 Sprite 的网格/UV 后调用 `effect.MarkSpriteMaskDirty()`。
+透明或裁剪隐藏时可减少写入节点工作，恢复可见时重新解析。
+独立 MeshRenderer / LineRenderer / TrailRenderer 不自动接入这里的粒子 SpriteMask 语义。
 
 ## 对照场景与验证
 
@@ -104,21 +107,4 @@ Inside 的参考值包含临时位，Outside 不包含；粒子本身不写 Sten
 - 原生示例使用 `Sprites/Default`、HP 示例使用原有 `UI/Additive`，颜色混合可能不同；
   该场景用于比较遮罩形状。自动测试另行逐像素验证 HP 原材质的颜色/Alpha/混合保持不变。
 
-GPU 回归入口（必须在**独立验证工程**中运行，会替换该工程当前场景；不要加 `-nographics`）：
-
-```text
-Unity.exe -batchmode -projectPath <validation-project> -executeMethod Coffee.UIExtensions.UIParticleSpriteMaskValidation.RunBatch -logFile <builtin.log>
-Unity.exe -batchmode -projectPath <validation-project> -executeMethod Coffee.UIExtensions.UIParticleSpriteMaskValidation.RunUrpBatch -logFile <urp.log>
-```
-
-验证工程的 Packages/manifest.json 引用本地 `Packages/src`，以及 URP 14.0.11、
-`com.unity.modules.imageconversion`、`com.unity.modules.physics`、`com.unity.modules.animation`。
-结果输出到验证工程的 `Logs/sprite-mask-validation*.txt`。测试包含非空图像检查、
-原生像素对照、范围端点、乱序 Layer ID、嵌套组、动态图集子区域、缩放、
-父级 Mask、共享 Replica、对象池、位耗尽及不兼容材质恢复。
-
-实际结果和验证环境见 `SpriteMaskValidation.md`。尚未覆盖真机 Android/iOS、XR、
-SpriteSkin 变形或运行时直接修改同一 Sprite 的网格/UV；不将这些场景视为已验证。
-
-参考：Unity 2022.3 [Sprite Masks](https://docs.unity3d.com/2022.3/Documentation/Manual/class-SpriteMask.html)、
-[SortingGroup](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Rendering.SortingGroup.html)。
+GPU 对照的当前结果、环境和复跑入口见[验证记录](Validation.md)。运行 GPU 验证需要独立工程副本和图形设备；不能加 `-nographics`。当前 Unity 6 / URP 17 对照通过不代表移动端、XR 或所有自定义 Shader 均已验证。

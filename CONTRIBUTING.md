@@ -1,33 +1,19 @@
-# 贡献指南 / Contributing
+# 贡献指南
 
-感谢你关注 `ParticleEffectForUGUI-HP`。本项目是 [mob-sakai/ParticleEffectForUGUI](https://github.com/mob-sakai/ParticleEffectForUGUI)
-的性能定制 Fork，欢迎提交 Issue 与 Pull Request。
+本仓库是 UI Particle 的 HP / Unity 6 分支。问题和 PR 请提交到 [shanflyer/ParticleEffectForUGUI-HP](https://github.com/shanflyer/ParticleEffectForUGUI-HP)，基于 `main` 开发。
 
-## 提交 Issue
+## 问题报告
 
-请在 [Issues](https://github.com/shanflyer/ParticleEffectForUGUI-HP/issues) 中选择合适的模板，并尽量提供：
+提供 Unity、管线和平台版本，最小复现步骤，以及相关配置：全局性能开关、Mesh Sharing、renderMeshes/renderLines/sortBySourceOrder、Mask 和 Shader。附上错误日志；性能问题还需测量条件、Profiler 或 CSV，不只提供 FPS。
 
-- Unity 版本（本工程基线为 **6000.4.7f1**）、渲染管线版本、目标平台；
-- 复现步骤与最小复现场景；
-- 相关开关的取值：`mergeRenderers` / `useGroupCache` / `bakeFPS` / `earlyCull` / `staticMeshCache` / `fastBindingMode` / `meshSharing`；
-- 报错堆栈、Profiler 截图或采集出的 CSV。
+## 修改与验证
 
-> 若问题来自上游原版而非本 Fork 的改动，建议同时在上游仓库反馈。
+- 包代码位于 `Packages/src`，评测和验证位于 `Assets/FxUIParticleTest`、`Assets/Tests`、`Tools`。
+- 按改动范围运行对应检查，说明实际执行了什么、未覆盖什么。当前基线为 Unity 6000.4.7f1，入口见[验证记录](Docs/Validation.md)。
+- 性能改动需说明生效条件、额外缓存/比较成本及行为变化；不要用调用次数下降替代整帧性能结论。
+- 更新接入文档与 `CHANGELOG.md`，区分已实现行为和建议方案。
+- 保留现有代码风格、版权和许可；热路径优先复用缓冲，并正确恢复接管的原生状态。
 
-## 提交 Pull Request
+不提交 Unity 生成缓存、采集结果、临时验证工程、内嵌管线源码或自定义管线实验。评测工程所需官方包依赖和配置资源可以提交。
 
-1. Fork 本仓库并基于 `main` 创建分支；
-2. 保持改动**聚焦**：与上游同步的部分尽量只改 `Packages/src/` 下的必要文件；
-3. 新增/修改优化时，请说明**收益前提、代价与生效条件**，并在 `CHANGELOG.md` 中记录；
-4. 提交前请在 Unity 6000.4.7f1 中打开工程确认 **0 编译错误**，必要时运行 `Tools/ParticleCrashTests/run_extended.py`；
-5. 不要在提交中包含 `Library/`、`Logs/`、`UserSettings/`、`Temp/`、`*.csproj`、`*.sln` 等生成物。
-
-## 代码风格
-
-- 跟随 `Packages/src` 现有风格（4 空格缩进、`m_`/`_` 前缀约定、文件内 `#region` 组织）；
-- 面向性能的热路径请避免每帧分配，必要时使用现有对象池（`ObjectPool` / `ObjectRepository`）；
-- 涉及行为语义变化的开关请**默认关闭**，并提供显式失效 API。
-
-## 许可证
-
-提交贡献即表示你同意以本仓库的 **MIT 许可**（见 [`LICENSE`](./LICENSE)）授权你的贡献。
+本项目自有贡献采用 [MIT](LICENSE) 许可；第三方内容保留原许可。

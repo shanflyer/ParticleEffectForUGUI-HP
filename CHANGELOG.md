@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### Unity 6 与动态输出（2026-09-19）
+
+- 基线迁移到 Unity 6000.4.7f1、UGUI 2.0.0、官方 URP 17.4.0；移除内嵌 URP 源码，排除自定义管线实验。
+- 新增独立 MeshRenderer / LineRenderer / TrailRenderer 桥接、源排序、状态恢复及显式 SpriteMask Dirty API。
+- 粒子与桥接输出按全局时间刻度更新，替代两相错峰；增加桥接网格内容比较、隐藏输出工作减少和遮罩提交缓存。
+- 基线采集 CSV 增加四列桥接/遮罩指标。新增原生用例；当前结果为原生 34 项、URP GPU 对照 62 项、托管 96 项通过，适用范围见[验证记录](Docs/Validation.md)。
+- 文档按当前代码重写，删除已过时规划和重复日志；明确合并检查、降频、缓存、Shader 与平台验证边界。
+
+### SpriteMask
+
 - 修复 SpriteMask 的原生低位写入泄漏到相邻 Scroll View，导致 Viewport 外 Toggle 重新显示：HP 接管源遮罩原生绘制，按引用计数恢复状态，并在相机剔除前同步新增/重挂接遮罩。
 
 - Canvas SpriteMask 桥接：按排序范围、Sorting Layer 和嵌套 SortingGroup 解析有效遮罩集合，支持 None / Inside / Outside、多遮罩并集与父级 UGUI Mask。
@@ -15,13 +25,13 @@
 
 ## [1.0.0] - 2026-09-11
 
-首个公开版本。
+首个公开版本。以下为当时的环境和功能记录，不是当前接入要求。
 
 ### 新增 / Added
 
 - 新建独立工程 `ParticleEffectForUGUI-HP`（Unity 2022.3.49f1 + URP 14.0.11），内嵌 Fork 版 `com.coffee.ui-particle` 4.14.0。
 - 性能优化开关（`UIParticle` 静态属性）：
-  - `mergeRenderers`：同一 `UIParticle` 下全部非 Trail 粒子系统合并到单一 Renderer 烘焙与提交。
+  - `mergeRenderers`：同一 `UIParticle` 下全部非 Trail 粒子系统合并到单一 UI 输出；各源仍分别烘焙。
   - `useGroupCache`：MeshSharing 组成员查找走字典缓存。
   - `bakeFPS`：粒子网格烘焙降频（Hz），配合 `ParticleBakeClock` 错峰调度。
   - `earlyCull`：0/1/2 档裁剪（渲染裁剪 / 渲染 + 模拟裁剪）。
@@ -43,5 +53,5 @@
 
 ### 注意 / Notes
 
-- 上述优化开关默认关闭，保持与原版一致的行为。
+- 当时的全局性能开关默认关闭；当前行为以性能说明为准。
 - `bakeFPS`、`earlyCull = 2`、`fastBindingMode` 会改变运行时语义，对比评测时须记录配置。
